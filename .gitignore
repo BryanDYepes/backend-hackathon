@@ -1,0 +1,24 @@
+# Dependencias
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Configuración del entorno (variables sensibles)
+.env
+.env.local
+.env.*.local
+
+# Archivos temporales o de pruebas
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Configs locales o del IDE
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Archivos del sistema o backups
+*.bak
+*.old
