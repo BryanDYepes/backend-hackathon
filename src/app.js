@@ -37,6 +37,11 @@ app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/inventario', require('./routes/inventario.routes'));
 app.use('/api/sucursales', require('./routes/sucursal.routes'));
 
+// ========================================
+// RUTA DE INTELIGENCIA ARTIFICIAL (NUEVA)
+// ========================================
+app.use('/api/ia', require('./routes/ia.routes'));
+
 // Manejo de rutas no encontradas
 app.use((req, res) => {
     res.status(404).json({ 
@@ -62,8 +67,9 @@ const PORT = process.env.PORT || 5000;
 // Iniciar el servidor solo si no estamos en ambiente de testing
 if (process.env.NODE_ENV !== 'trix_database') {
     app.listen(PORT, () => {
-        console.log(`Servidor corriendo en puerto ${PORT}`);
-        console.log(`Ambiente: ${process.env.NODE_ENV || 'desarrollo'}`);
+        console.log(`✅ Servidor corriendo en puerto ${PORT}`);
+        console.log(`🌍 Ambiente: ${process.env.NODE_ENV || 'desarrollo'}`);
+        console.log(`🤖 Rutas IA disponibles en: http://localhost:${PORT}/api/ia`);
     });
 }
 
