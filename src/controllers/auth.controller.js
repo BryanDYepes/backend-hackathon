@@ -16,7 +16,6 @@ const registrarUsuario = async (req, res) => {
     try {
         const { nombre, email, password, rol, sucursal } = req.body;
 
-        // Validar campos requeridos
         if (!nombre || !email || !password) {
             return res.status(400).json({
                 error: true,
@@ -24,7 +23,6 @@ const registrarUsuario = async (req, res) => {
             });
         }
 
-        // Verificar si el usuario ya existe
         const usuarioExiste = await Usuario.findOne({ email });
         if (usuarioExiste) {
             return res.status(400).json({
@@ -33,7 +31,6 @@ const registrarUsuario = async (req, res) => {
             });
         }
 
-        // Validar sucursal si se envía
         let sucursalAsignada = null;
         if (sucursal) {
             const sucursalEncontrada = await Sucursal.findById(sucursal);
@@ -46,7 +43,6 @@ const registrarUsuario = async (req, res) => {
             sucursalAsignada = sucursalEncontrada._id;
         }
 
-        // Crear usuario
         const usuario = await Usuario.create({
             nombre,
             email,
@@ -55,18 +51,26 @@ const registrarUsuario = async (req, res) => {
             sucursal: sucursalAsignada
         });
 
-        // Generar token
         const token = generarToken(usuario._id);
+
+        // Populate para incluir el nombre de la sucursal
+        const usuarioConSucursal = await Usuario.findById(usuario._id)
+            .populate('sucursal', 'nombre codigo estado');
 
         res.status(201).json({
             success: true,
             mensaje: 'Usuario registrado exitosamente',
             data: {
-                id: usuario._id,
-                nombre: usuario.nombre,
-                email: usuario.email,
-                rol: usuario.rol,
-                sucursal: sucursalAsignada,
+                id: usuarioConSucursal._id,
+                nombre: usuarioConSucursal.nombre,
+                email: usuarioConSucursal.email,
+                rol: usuarioConSucursal.rol,
+                sucursal: usuarioConSucursal.sucursal
+                    ? {
+                        id: usuarioConSucursal.sucursal._id,
+                        nombre: usuarioConSucursal.sucursal.nombre
+                    }
+                    : null,
                 token
             }
         });
@@ -134,7 +138,12 @@ const loginUsuario = async (req, res) => {
                 nombre: usuario.nombre,
                 email: usuario.email,
                 rol: usuario.rol,
-                sucursal: usuario.sucursal,
+                sucursal: usuario.sucursal
+                    ? {
+                        id: usuario.sucursal._id,
+                        nombre: usuario.sucursal.nombre
+                    }
+                    : null,
                 token
             }
         });
@@ -166,7 +175,20 @@ const obtenerPerfil = async (req, res) => {
 
         res.json({
             success: true,
-            data: usuario
+            data: {
+                id: usuario._id,
+                nombre: usuario.nombre,
+                email: usuario.email,
+                rol: usuario.rol,
+                sucursal: usuario.sucursal
+                    ? {
+                        id: usuario.sucursal._id,
+                        nombre: usuario.sucursal.nombre
+                    }
+                    : null,
+                activo: usuario.activo,
+                ultimoAcceso: usuario.ultimoAcceso
+            }
         });
 
     } catch (error) {
@@ -197,7 +219,6 @@ const actualizarPerfil = async (req, res) => {
         if (nombre) usuario.nombre = nombre;
         if (email) usuario.email = email;
 
-        // Si se envía una nueva sucursal, validar que exista
         if (sucursal) {
             const sucursalValida = await Sucursal.findById(sucursal);
             if (!sucursalValida) {
@@ -211,14 +232,24 @@ const actualizarPerfil = async (req, res) => {
 
         await usuario.save();
 
-        // Retornar con populate para mostrar la info actualizada de la sucursal
         const usuarioActualizado = await Usuario.findById(usuario._id)
             .populate('sucursal', 'nombre codigo estado');
 
         res.json({
             success: true,
             mensaje: 'Perfil actualizado exitosamente',
-            data: usuarioActualizado
+            data: {
+                id: usuarioActualizado._id,
+                nombre: usuarioActualizado.nombre,
+                email: usuarioActualizado.email,
+                rol: usuarioActualizado.rol,
+                sucursal: usuarioActualizado.sucursal
+                    ? {
+                        id: usuarioActualizado.sucursal._id,
+                        nombre: usuarioActualizado.sucursal.nombre
+                    }
+                    : null
+            }
         });
 
     } catch (error) {
