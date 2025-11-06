@@ -23,8 +23,8 @@ router.get('/:id', obtenerSucursalPorId);
 router.get('/:id/estadisticas', obtenerEstadisticasSucursal);
 
 // Rutas de modificación (solo admin)
-router.post('/', verificarRol('admin'), crearSucursal);
-router.put('/:id', verificarRol('admin'), actualizarSucursal);
-router.delete('/:id', verificarRol('admin'), eliminarSucursal);
+router.post('/', verificarRol('admin','gerente'), crearSucursal);
+router.put('/:id', verificarRol('admin','gerente'), actualizarSucursal);
+router.delete('/:id', verificarRol('admin','gerente'), eliminarSucursal);
 
 module.exports = router;

@@ -16,6 +16,9 @@ const qrCtrl = require('../controllers/qr.controller');
 
 // Ruta pública
 router.get('/:id/qrcode', qrCtrl.generarQRCodeProducto);
+// GET público para ver producto por id
+router.get('/public/:id', obtenerProductoPorId);
+
 
 // Todas las rutas requieren autenticación
 router.use(protegerRuta);
@@ -31,7 +34,7 @@ router.get('/:id', obtenerProductoPorId);
 router.post('/', verificarRol('admin', 'gerente'), crearProducto);
 router.put('/:id', verificarRol('admin', 'gerente'), actualizarProducto);
 router.patch('/:id/stock', actualizarStock); // Cualquier usuario puede actualizar stock
-router.delete('/:id', verificarRol('admin'), eliminarProducto);
+router.delete('/:id', verificarRol('admin','gerente'), eliminarProducto);
 
 
 module.exports = router;

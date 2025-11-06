@@ -38,6 +38,61 @@ app.use('/api/ventas', require('./routes/venta.routes'));
 app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/inventario', require('./routes/inventario.routes'));
+app.get('/panel/producto/:id', (req, res) => {
+  // Servimos un HTML simple
+  res.send(`
+    <!doctype html>
+    <html>
+    <head>
+      <meta charset="utf-8"/>
+      <meta name="viewport" content="width=device-width,initial-scale=1"/>
+      <title>Producto - Panel</title>
+      <style>
+        body{font-family: Arial, Helvetica, sans-serif; padding:20px; max-width:720px; margin:auto;}
+        .card{border:1px solid #ddd; padding:20px; border-radius:8px;}
+        img.product-img{max-width:200px; display:block; margin-bottom:10px;}
+        .label{font-weight:700;}
+      </style>
+    </head>
+    <body>
+      <div id="root">
+        <div class="card" id="card">
+          <h2>Cargando producto...</h2>
+        </div>
+      </div>
+
+      <script>
+        (async () => {
+          const id = "${req.params.id}";
+          try {
+            // Fetch desde la ruta pública
+            fetch('https://backend-hackathon-t4q9.onrender.com/api/productos/public/' + id);
+            if (!response.ok) throw new Error('No se encontró el producto');
+            const json = await response.json();
+            const p = json.data;
+            const root = document.getElementById('card');
+            root.innerHTML = \`
+              <h1>\${p.nombre}</h1>
+              \${p.imagen ? '<img class="product-img" src="'+p.imagen+'" alt="imagen"/>' : ''}
+              <p><span class="label">Código:</span> \${p.codigo}</p>
+              <p><span class="label">Descripción:</span> \${p.descripcion || '-'}</p>
+              <p><span class="label">Categoría:</span> \${p.categoria || '-'}</p>
+              <p><span class="label">Género:</span> \${p.genero || '-'}</p>
+              <p><span class="label">Talla:</span> \${p.talla || '-'}</p>
+              <p><span class="label">Color:</span> \${p.color || '-'}</p>
+              <p><span class="label">Precio venta:</span> \${p.precioVenta || '-'}</p>
+              <p><span class="label">Stock actual:</span> \${p.stockActual || 0}</p>
+            \`;
+          } catch (err) {
+            document.getElementById('card').innerHTML = '<h2>Error cargando producto</h2><p>'+err.message+'</p>';
+          }
+        })();
+      </script>
+    </body>
+    </html>
+  `);
+});
+
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
@@ -68,59 +123,5 @@ if (process.env.NODE_ENV !== 'trix_database') {
         console.log(`Ambiente: ${process.env.NODE_ENV || 'desarrollo'}`);
     });
 }
-
-app.get('/panel/producto/:id', (req, res) => {
-  // Servimos un HTML simple, que consulta /api/productos/:id
-  res.send(`
-    <!doctype html>
-    <html>
-    <head>
-      <meta charset="utf-8"/>
-      <meta name="viewport" content="width=device-width,initial-scale=1"/>
-      <title>Producto - Panel</title>
-      <style>
-        body{font-family: Arial, Helvetica, sans-serif; padding:20px; max-width:720px; margin:auto;}
-        .card{border:1px solid #ddd; padding:20px; border-radius:8px;}
-        img.product-img{max-width:200px; display:block; margin-bottom:10px;}
-        .label{font-weight:700;}
-      </style>
-    </head>
-    <body>
-      <div id="root">
-        <div class="card" id="card">
-          <h2>Cargando producto...</h2>
-        </div>
-      </div>
-
-      <script>
-        (async () => {
-          const id = "${req.params.id}";
-          try {
-            const res = await fetch('/api/productos/' + id);
-            if (!res.ok) throw new Error('No se encontró el producto');
-            const json = await res.json();
-            const p = json.data;
-            const root = document.getElementById('card');
-            root.innerHTML = \`
-              <h1>\${p.nombre}</h1>
-              \${p.imagen ? '<img class="product-img" src="'+p.imagen+'" alt="imagen"/>' : ''}
-              <p><span class="label">Código:</span> \${p.codigo}</p>
-              <p><span class="label">Descripción:</span> \${p.descripcion || '-'}</p>
-              <p><span class="label">Categoría:</span> \${p.categoria || '-'}</p>
-              <p><span class="label">Género:</span> \${p.genero || '-'}</p>
-              <p><span class="label">Talla:</span> \${p.talla || '-'}</p>
-              <p><span class="label">Color:</span> \${p.color || '-'}</p>
-              <p><span class="label">Precio venta:</span> \${p.precioVenta || '-'}</p>
-              <p><span class="label">Stock actual:</span> \${p.stockActual || 0}</p>
-            \`;
-          } catch (err) {
-            document.getElementById('card').innerHTML = '<h2>Error cargando producto</h2><p>'+err.message+'</p>';
-          }
-        })();
-      </script>
-    </body>
-    </html>
-  `);
-});
 
 module.exports = app;
