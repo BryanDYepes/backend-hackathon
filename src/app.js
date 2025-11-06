@@ -114,7 +114,8 @@ app.get('/panel/producto/:id', (req, res) => {
     </html>
   `);
 });
-
+// RUTA DE INTELIGENCIA ARTIFICIALL
+app.use('/api/ia', require('./routes/ia.routes'));
 
 
 // Manejo de rutas no encontradas
