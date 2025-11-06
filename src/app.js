@@ -34,6 +34,8 @@ app.use('/api/productos', require('./routes/producto.routes'));
 app.use('/api/ventas', require('./routes/venta.routes'));
 app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
+app.use('/api/inventario', require('./routes/inventario.routes'));
+app.use('/api/sucursales', require('./routes/sucursal.routes'));
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
@@ -58,7 +60,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 // Iniciar el servidor solo si no estamos en ambiente de testing
-if (process.env.NODE_ENV !== 'test') {
+if (process.env.NODE_ENV !== 'trix_database') {
     app.listen(PORT, () => {
         console.log(`Servidor corriendo en puerto ${PORT}`);
         console.log(`Ambiente: ${process.env.NODE_ENV || 'desarrollo'}`);
