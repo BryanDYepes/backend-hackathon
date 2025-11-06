@@ -20,6 +20,7 @@ router.get('/:id/qrcode', qrCtrl.generarQRCodeProducto);
 router.get('/public/:id', obtenerProductoPorId);
 
 
+
 // Todas las rutas requieren autenticación
 router.use(protegerRuta);
 

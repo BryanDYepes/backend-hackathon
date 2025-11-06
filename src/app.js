@@ -21,6 +21,53 @@ app.use(express.urlencoded({ extended: true })); // Para form-data
 app.use(morgan('dev')); // Logging de peticiones HTTP en desarrollo
 app.use(express.static(path.join(__dirname, 'public'))); // sirve /public
 
+const imagenesPermitidas = [
+  'https://d1fufvy4xao6k9.cloudfront.net',
+  'https://uniformesyarutex.com',
+  'https://gentefashiongroup.com',
+  'https://solco.com.ar',
+  'https://cdn0.matrimonio.com.co',
+  'https://boral.com.co',
+  'https://www.atributo.co',
+  'https://www.oxap.com.co',
+  'https://marketingpersonalco.vtexassets.com',
+  'https://www.gef.co',
+  'https://tottoco.vtexassets.com',
+  'https://encrypted-tbn0.gstatic.com',
+  'https://www.hurlintongnf.co',
+  'https://estilofit.com.co',
+  'https://www.sevenseven.com',
+  'https://tennis.vtexassets.com',
+  'https://www.ostu.com',
+  'https://img.kwcdn.com',
+  'https://cdn.baguer.co',
+  'https://m.media-amazon.com',
+  'https://armatura.com.co',
+  'https://lukshop.vtexassets.com',
+  'https://www.apostolqc.com',
+  'https://superdrycolombia.vtexassets.com',
+  'https://chevignon.vtexassets.com',
+  'https://calvincolombia.vtexassets.com',
+  'https://kidsrepublic.com.co',
+  'https://colorkids.com.co',
+  'https://ae-pic-a1.aliexpress-media.com',
+  'https://i.pinimg.com',
+  'https://daisagirls.com'
+];
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", "data:", ...imagenesPermitidas]
+      }
+    }
+  })
+);
+
+
 // Ruta de prueba para verificar que el servidor está funcionando
 app.get('/', (req, res) => {
     res.json({ 
@@ -38,8 +85,9 @@ app.use('/api/ventas', require('./routes/venta.routes'));
 app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/inventario', require('./routes/inventario.routes'));
+// Panel del producto
 app.get('/panel/producto/:id', (req, res) => {
-  // Servimos un HTML simple
+  // Servimos HTML mínimo, JS externo hace fetch
   res.send(`
     <!doctype html>
     <html>
@@ -55,43 +103,18 @@ app.get('/panel/producto/:id', (req, res) => {
       </style>
     </head>
     <body>
-      <div id="root">
+      <div id="root" data-id="${req.params.id}">
         <div class="card" id="card">
           <h2>Cargando producto...</h2>
         </div>
       </div>
 
-      <script>
-        (async () => {
-          const id = "${req.params.id}";
-          try {
-            // Fetch desde la ruta pública
-            fetch('https://backend-hackathon-t4q9.onrender.com/api/productos/public/' + id);
-            if (!response.ok) throw new Error('No se encontró el producto');
-            const json = await response.json();
-            const p = json.data;
-            const root = document.getElementById('card');
-            root.innerHTML = \`
-              <h1>\${p.nombre}</h1>
-              \${p.imagen ? '<img class="product-img" src="'+p.imagen+'" alt="imagen"/>' : ''}
-              <p><span class="label">Código:</span> \${p.codigo}</p>
-              <p><span class="label">Descripción:</span> \${p.descripcion || '-'}</p>
-              <p><span class="label">Categoría:</span> \${p.categoria || '-'}</p>
-              <p><span class="label">Género:</span> \${p.genero || '-'}</p>
-              <p><span class="label">Talla:</span> \${p.talla || '-'}</p>
-              <p><span class="label">Color:</span> \${p.color || '-'}</p>
-              <p><span class="label">Precio venta:</span> \${p.precioVenta || '-'}</p>
-              <p><span class="label">Stock actual:</span> \${p.stockActual || 0}</p>
-            \`;
-          } catch (err) {
-            document.getElementById('card').innerHTML = '<h2>Error cargando producto</h2><p>'+err.message+'</p>';
-          }
-        })();
-      </script>
+      <script src="/js/panel.js"></script>
     </body>
     </html>
   `);
 });
+
 
 
 // Manejo de rutas no encontradas
