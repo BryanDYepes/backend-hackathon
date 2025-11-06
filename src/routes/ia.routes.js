@@ -1,4 +1,3 @@
-// routes/ia.routes.js
 const express = require('express');
 const router = express.Router();
 const {
@@ -6,7 +5,6 @@ const {
     obtenerSobreStock,
     obtenerReabastecimientoInteligente,
     obtenerComparativoSucursales,
-    //obtenercompararSucursales,
     obtenerTendenciasMensuales,
     obtenerSegmentacionGeneroTalla,
     obtenerDashboardEjecutivo,
@@ -14,49 +12,69 @@ const {
     procesarChatInteligente
 } = require('../controllers/ia.controller');
 
-// const { proteger, autorizarRoles } = require('../middleware/auth.middleware');
+// Importar los middlewares con los nombres correctos
+const { protegerRuta, verificarRol } = require('../middlewares/auth.middleware');
 
-// RUTAS CRÍTICAS (INDISPENSABLES)
+// RUTAS PROTEGIDAS
 
-// 1. Análisis de rotación de inventario t
-router.post('/rotacion-productos', obtenerRotacionProductos);
+router.post(
+    '/rotacion-productos',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerRotacionProductos
+);
 
-// 2. Identificación de sobre-stock t
-router.post('/sobre-stock', obtenerSobreStock);
+router.post(
+    '/sobre-stock',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerSobreStock
+);
 
-// 3. Reabastecimiento inteligente t
-router.post('/reabastecimiento-inteligente', obtenerReabastecimientoInteligente);
+router.post(
+    '/reabastecimiento-inteligente',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerReabastecimientoInteligente
+);
 
-// 4. Comparativo entre sucursales t
-router.post('/comparativo-sucursales', obtenerComparativoSucursales,);
+router.post(
+    '/comparativo-sucursales',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerComparativoSucursales
+);
 
-// 5. Análisis de tendencias mensuales t 
-router.post('/tendencias-mensuales', obtenerTendenciasMensuales);
+router.post(
+    '/tendencias-mensuales',
+    protegerRuta,
+    obtenerTendenciasMensuales
+);
 
-// 6. Segmentación por género y talla t 
-router.post('/segmentacion-genero-talla', obtenerSegmentacionGeneroTalla);
+router.post(
+    '/segmentacion-genero-talla',
+    protegerRuta,
+    obtenerSegmentacionGeneroTalla
+);
 
-// 7. Dashboard ejecutivott
-router.post('/dashboard-ejecutivo', obtenerDashboardEjecutivo);
+router.post(
+    '/dashboard-ejecutivo',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerDashboardEjecutivo
+);
 
-// RUTAS INNOVADORAS (WOW FACTOR)
+router.post(
+    '/estrategia-descuentos',
+    protegerRuta,
+    verificarRol('admin', 'gerente'),
+    obtenerEstrategiaDescuentos
+);
 
-// 8. Estrategia dinámica de descuentos
-router.post('/estrategia-descuentos', obtenerEstrategiaDescuentos);
-
-// 9. Chatbot inteligente
-router.post('/chat-inteligente', procesarChatInteligente);
-
-// RUTAS PROTEGIDAS (DESCOMENTAR EN PRODUCCIÓN)
-
-// router.post('/rotacion-productos', proteger, autorizarRoles('admin', 'gerente'), obtenerRotacionProductos);
-// router.post('/sobre-stock', proteger, autorizarRoles('admin', 'gerente'), obtenerSobreStock);
-// router.post('/reabastecimiento-inteligente', proteger, autorizarRoles('admin', 'gerente'), obtenerReabastecimientoInteligente);
-// router.post('/comparativo-sucursales', proteger, autorizarRoles('admin'), obtenerComparativoSucursales);
-// router.post('/tendencias-mensuales', proteger, obtenerTendenciasMensuales);
-// router.post('/segmentacion-genero-talla', proteger, obtenerSegmentacionGeneroTalla);
-// router.post('/dashboard-ejecutivo', proteger, autorizarRoles('admin', 'gerente'), obtenerDashboardEjecutivo);
-// router.post('/estrategia-descuentos', proteger, autorizarRoles('admin', 'gerente'), obtenerEstrategiaDescuentos);
-// router.post('/chat-inteligente', proteger, procesarChatInteligente);
+router.post(
+    '/chat-inteligente',
+    protegerRuta,
+    procesarChatInteligente
+);
 
 module.exports = router;
