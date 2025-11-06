@@ -35,7 +35,6 @@ app.use('/api/ventas', require('./routes/venta.routes'));
 app.use('/api/reportes', require('./routes/reporte.routes'));
 app.use('/api/analytics', require('./routes/analytics.routes'));
 app.use('/api/inventario', require('./routes/inventario.routes'));
-app.use('/api/sucursales', require('./routes/sucursal.routes'));
 
 // Manejo de rutas no encontradas
 app.use((req, res) => {
