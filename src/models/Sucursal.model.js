@@ -115,5 +115,4 @@ sucursalSchema.virtual('direccionCompleta').get(function() {
 // Asegurar que los virtuals se incluyan en JSON
 sucursalSchema.set('toJSON', { virtuals: true });
 sucursalSchema.set('toObject', { virtuals: true });
-
 module.exports = mongoose.model('Sucursal', sucursalSchema);

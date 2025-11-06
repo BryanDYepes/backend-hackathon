@@ -9,9 +9,13 @@ const {
     eliminarProducto,
     actualizarStock,
     obtenerProductosStockBajo,
-    buscarProductos
+    buscarProductos,
 } = require('../controllers/producto.controller');
 const { protegerRuta, verificarRol } = require('../middlewares/auth.middleware');
+const qrCtrl = require('../controllers/qr.controller');
+
+// Ruta pública
+router.get('/:id/qrcode', qrCtrl.generarQRCodeProducto);
 
 // Todas las rutas requieren autenticación
 router.use(protegerRuta);
@@ -28,5 +32,6 @@ router.post('/', verificarRol('admin', 'gerente'), crearProducto);
 router.put('/:id', verificarRol('admin', 'gerente'), actualizarProducto);
 router.patch('/:id/stock', actualizarStock); // Cualquier usuario puede actualizar stock
 router.delete('/:id', verificarRol('admin'), eliminarProducto);
+
 
 module.exports = router;
