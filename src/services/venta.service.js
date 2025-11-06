@@ -105,6 +105,7 @@ const obtenerVentasPorMetodoPago = async (fechaInicio, fechaFin) => {
 };
 
 // Obtener ventas por sucursal
+// Obtener ventas por sucursal (con detalles completos)
 const obtenerVentasPorSucursal = async (fechaInicio, fechaFin) => {
     try {
         const ventas = await Venta.aggregate([
@@ -125,10 +126,30 @@ const obtenerVentasPorSucursal = async (fechaInicio, fechaFin) => {
                     promedioVenta: { $avg: '$total' }
                 }
             },
+            {
+                $lookup: {
+                    from: 'sucursals',
+                    localField: '_id',
+                    foreignField: '_id',
+                    as: 'sucursalInfo'
+                }
+            },
+            { $unwind: '$sucursalInfo' },
             { $sort: { totalIngresos: -1 } }
         ]);
         
-        return ventas;
+        return ventas.map(v => ({
+            sucursal: {
+                _id: v.sucursalInfo._id,
+                codigo: v.sucursalInfo.codigo,
+                nombre: v.sucursalInfo.nombre,
+                ciudad: v.sucursalInfo.direccion.ciudad,
+                gerente: v.sucursalInfo.nombreGerente
+            },
+            cantidadVentas: v.cantidadVentas,
+            totalIngresos: v.totalIngresos,
+            promedioVenta: v.promedioVenta
+        }));
     } catch (error) {
         throw new Error('Error al agrupar por sucursal: ' + error.message);
     }

@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const registrarEntrada = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const {
             productoId,
@@ -17,7 +17,7 @@ const registrarEntrada = async (req, res) => {
             observaciones,
             costoUnitario
         } = req.body;
-        
+
         // Validaciones
         if (!productoId || !cantidad) {
             await session.abortTransaction();
@@ -26,10 +26,10 @@ const registrarEntrada = async (req, res) => {
                 mensaje: 'ProductoId y cantidad son obligatorios'
             });
         }
-        
+
         // Buscar el producto
         const producto = await Producto.findById(productoId).session(session);
-        
+
         if (!producto) {
             await session.abortTransaction();
             return res.status(404).json({
@@ -37,20 +37,20 @@ const registrarEntrada = async (req, res) => {
                 mensaje: 'Producto no encontrado'
             });
         }
-        
+
         // Guardar stock anterior
         const stockAnterior = producto.stockActual;
-        
+
         // Actualizar stock del producto
         producto.stockActual += parseInt(cantidad);
-        
+
         // Si viene costo unitario, actualizar precio de compra
         if (costoUnitario && costoUnitario > 0) {
             producto.precioCompra = costoUnitario;
         }
-        
+
         await producto.save({ session });
-        
+
         // Registrar movimiento
         const movimiento = await MovimientoInventario.create([{
             producto: producto._id,
@@ -67,9 +67,9 @@ const registrarEntrada = async (req, res) => {
             observaciones,
             costoUnitario: costoUnitario || producto.precioCompra
         }], { session });
-        
+
         await session.commitTransaction();
-        
+
         res.status(201).json({
             success: true,
             mensaje: 'Entrada de inventario registrada exitosamente',
@@ -78,7 +78,7 @@ const registrarEntrada = async (req, res) => {
                 movimiento: movimiento[0]
             }
         });
-        
+
     } catch (error) {
         await session.abortTransaction();
         console.error('Error al registrar entrada:', error);
@@ -98,7 +98,7 @@ const registrarEntrada = async (req, res) => {
 const registrarSalida = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const {
             productoId,
@@ -106,7 +106,7 @@ const registrarSalida = async (req, res) => {
             motivo,
             observaciones
         } = req.body;
-        
+
         if (!productoId || !cantidad || !motivo) {
             await session.abortTransaction();
             return res.status(400).json({
@@ -114,9 +114,9 @@ const registrarSalida = async (req, res) => {
                 mensaje: 'ProductoId, cantidad y motivo son obligatorios'
             });
         }
-        
+
         const producto = await Producto.findById(productoId).session(session);
-        
+
         if (!producto) {
             await session.abortTransaction();
             return res.status(404).json({
@@ -124,7 +124,7 @@ const registrarSalida = async (req, res) => {
                 mensaje: 'Producto no encontrado'
             });
         }
-        
+
         // Verificar stock suficiente
         if (producto.stockActual < cantidad) {
             await session.abortTransaction();
@@ -133,11 +133,11 @@ const registrarSalida = async (req, res) => {
                 mensaje: `Stock insuficiente. Disponible: ${producto.stockActual}`
             });
         }
-        
+
         const stockAnterior = producto.stockActual;
         producto.stockActual -= parseInt(cantidad);
         await producto.save({ session });
-        
+
         const movimiento = await MovimientoInventario.create([{
             producto: producto._id,
             nombreProducto: producto.nombre,
@@ -153,9 +153,9 @@ const registrarSalida = async (req, res) => {
             observaciones,
             costoUnitario: producto.precioCompra
         }], { session });
-        
+
         await session.commitTransaction();
-        
+
         res.status(201).json({
             success: true,
             mensaje: 'Salida de inventario registrada exitosamente',
@@ -164,7 +164,7 @@ const registrarSalida = async (req, res) => {
                 movimiento: movimiento[0]
             }
         });
-        
+
     } catch (error) {
         await session.abortTransaction();
         console.error('Error al registrar salida:', error);
@@ -184,7 +184,7 @@ const registrarSalida = async (req, res) => {
 const registrarAjuste = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const {
             productoId,
@@ -192,7 +192,7 @@ const registrarAjuste = async (req, res) => {
             motivo,
             observaciones
         } = req.body;
-        
+
         if (!productoId || stockReal === undefined || !motivo) {
             await session.abortTransaction();
             return res.status(400).json({
@@ -200,9 +200,9 @@ const registrarAjuste = async (req, res) => {
                 mensaje: 'ProductoId, stockReal y motivo son obligatorios'
             });
         }
-        
+
         const producto = await Producto.findById(productoId).session(session);
-        
+
         if (!producto) {
             await session.abortTransaction();
             return res.status(404).json({
@@ -210,10 +210,10 @@ const registrarAjuste = async (req, res) => {
                 mensaje: 'Producto no encontrado'
             });
         }
-        
+
         const stockAnterior = producto.stockActual;
         const diferencia = parseInt(stockReal) - stockAnterior;
-        
+
         // No hacer nada si no hay diferencia
         if (diferencia === 0) {
             await session.abortTransaction();
@@ -222,13 +222,13 @@ const registrarAjuste = async (req, res) => {
                 mensaje: 'El stock real es igual al stock actual, no hay ajuste necesario'
             });
         }
-        
+
         // Determinar tipo de ajuste
         const tipoMovimiento = diferencia > 0 ? 'AJUSTE_POSITIVO' : 'AJUSTE_NEGATIVO';
-        
+
         producto.stockActual = parseInt(stockReal);
         await producto.save({ session });
-        
+
         const movimiento = await MovimientoInventario.create([{
             producto: producto._id,
             nombreProducto: producto.nombre,
@@ -244,9 +244,9 @@ const registrarAjuste = async (req, res) => {
             observaciones: `${observaciones || ''}\nDiferencia: ${diferencia}`,
             costoUnitario: producto.precioCompra
         }], { session });
-        
+
         await session.commitTransaction();
-        
+
         res.status(201).json({
             success: true,
             mensaje: 'Ajuste de inventario registrado exitosamente',
@@ -256,7 +256,7 @@ const registrarAjuste = async (req, res) => {
                 diferencia
             }
         });
-        
+
     } catch (error) {
         await session.abortTransaction();
         console.error('Error al registrar ajuste:', error);
@@ -276,7 +276,7 @@ const registrarAjuste = async (req, res) => {
 const registrarTransferencia = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const {
             productoId,
@@ -284,7 +284,7 @@ const registrarTransferencia = async (req, res) => {
             sucursalDestino,
             observaciones
         } = req.body;
-        
+
         if (!productoId || !cantidad || !sucursalDestino) {
             await session.abortTransaction();
             return res.status(400).json({
@@ -292,9 +292,9 @@ const registrarTransferencia = async (req, res) => {
                 mensaje: 'ProductoId, cantidad y sucursalDestino son obligatorios'
             });
         }
-        
+
         const producto = await Producto.findById(productoId).session(session);
-        
+
         if (!producto) {
             await session.abortTransaction();
             return res.status(404).json({
@@ -302,7 +302,7 @@ const registrarTransferencia = async (req, res) => {
                 mensaje: 'Producto no encontrado'
             });
         }
-        
+
         // Verificar que la sucursal destino sea diferente
         if (producto.sucursal === sucursalDestino) {
             await session.abortTransaction();
@@ -311,7 +311,7 @@ const registrarTransferencia = async (req, res) => {
                 mensaje: 'La sucursal destino debe ser diferente a la origen'
             });
         }
-        
+
         // Verificar stock suficiente
         if (producto.stockActual < cantidad) {
             await session.abortTransaction();
@@ -320,11 +320,11 @@ const registrarTransferencia = async (req, res) => {
                 mensaje: `Stock insuficiente. Disponible: ${producto.stockActual}`
             });
         }
-        
+
         const stockAnterior = producto.stockActual;
         producto.stockActual -= parseInt(cantidad);
         await producto.save({ session });
-        
+
         // Registrar salida en sucursal origen
         await MovimientoInventario.create([{
             producto: producto._id,
@@ -335,20 +335,20 @@ const registrarTransferencia = async (req, res) => {
             stockAnterior,
             stockNuevo: producto.stockActual,
             sucursal: producto.sucursal,
-            sucursalDestino,
+            sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
             motivo: `Transferencia a ${sucursalDestino}`,
             observaciones,
             costoUnitario: producto.precioCompra
         }], { session });
-        
+
         // Buscar o crear producto en sucursal destino
         let productoDestino = await Producto.findOne({
             codigo: producto.codigo,
             sucursal: sucursalDestino
         }).session(session);
-        
+
         if (!productoDestino) {
             // Crear producto en sucursal destino si no existe
             productoDestino = await Producto.create([{
@@ -363,13 +363,13 @@ const registrarTransferencia = async (req, res) => {
                 precioVenta: producto.precioVenta,
                 stockActual: parseInt(cantidad),
                 stockMinimo: producto.stockMinimo,
-                sucursal: sucursalDestino,
+                sucursal: mongoose.Types.ObjectId(sucursalDestino),
                 proveedor: producto.proveedor,
                 imagen: producto.imagen
             }], { session });
-            
+
             productoDestino = productoDestino[0];
-            
+
             // Registrar entrada en sucursal destino
             await MovimientoInventario.create([{
                 producto: productoDestino._id,
@@ -379,7 +379,7 @@ const registrarTransferencia = async (req, res) => {
                 cantidad: parseInt(cantidad),
                 stockAnterior: 0,
                 stockNuevo: parseInt(cantidad),
-                sucursal: sucursalDestino,
+                sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
                 usuario: req.usuario._id,
                 nombreUsuario: req.usuario.nombre,
                 motivo: `Transferencia desde ${producto.sucursal}`,
@@ -391,7 +391,7 @@ const registrarTransferencia = async (req, res) => {
             const stockAnteriorDestino = productoDestino.stockActual;
             productoDestino.stockActual += parseInt(cantidad);
             await productoDestino.save({ session });
-            
+
             await MovimientoInventario.create([{
                 producto: productoDestino._id,
                 nombreProducto: productoDestino.nombre,
@@ -400,7 +400,7 @@ const registrarTransferencia = async (req, res) => {
                 cantidad: parseInt(cantidad),
                 stockAnterior: stockAnteriorDestino,
                 stockNuevo: productoDestino.stockActual,
-                sucursal: sucursalDestino,
+                sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
                 usuario: req.usuario._id,
                 nombreUsuario: req.usuario.nombre,
                 motivo: `Transferencia desde ${producto.sucursal}`,
@@ -408,9 +408,9 @@ const registrarTransferencia = async (req, res) => {
                 costoUnitario: producto.precioCompra
             }], { session });
         }
-        
+
         await session.commitTransaction();
-        
+
         res.status(201).json({
             success: true,
             mensaje: 'Transferencia registrada exitosamente',
@@ -419,7 +419,7 @@ const registrarTransferencia = async (req, res) => {
                 productoDestino: productoDestino
             }
         });
-        
+
     } catch (error) {
         await session.abortTransaction();
         console.error('Error al registrar transferencia:', error);
@@ -439,7 +439,7 @@ const registrarTransferencia = async (req, res) => {
 const registrarMerma = async (req, res) => {
     const session = await mongoose.startSession();
     session.startTransaction();
-    
+
     try {
         const {
             productoId,
@@ -447,7 +447,7 @@ const registrarMerma = async (req, res) => {
             motivo,
             observaciones
         } = req.body;
-        
+
         if (!productoId || !cantidad || !motivo) {
             await session.abortTransaction();
             return res.status(400).json({
@@ -455,9 +455,9 @@ const registrarMerma = async (req, res) => {
                 mensaje: 'ProductoId, cantidad y motivo son obligatorios'
             });
         }
-        
+
         const producto = await Producto.findById(productoId).session(session);
-        
+
         if (!producto) {
             await session.abortTransaction();
             return res.status(404).json({
@@ -465,7 +465,7 @@ const registrarMerma = async (req, res) => {
                 mensaje: 'Producto no encontrado'
             });
         }
-        
+
         if (producto.stockActual < cantidad) {
             await session.abortTransaction();
             return res.status(400).json({
@@ -473,11 +473,11 @@ const registrarMerma = async (req, res) => {
                 mensaje: `Stock insuficiente. Disponible: ${producto.stockActual}`
             });
         }
-        
+
         const stockAnterior = producto.stockActual;
         producto.stockActual -= parseInt(cantidad);
         await producto.save({ session });
-        
+
         const movimiento = await MovimientoInventario.create([{
             producto: producto._id,
             nombreProducto: producto.nombre,
@@ -493,9 +493,9 @@ const registrarMerma = async (req, res) => {
             observaciones,
             costoUnitario: producto.precioCompra
         }], { session });
-        
+
         await session.commitTransaction();
-        
+
         res.status(201).json({
             success: true,
             mensaje: 'Merma registrada exitosamente',
@@ -504,7 +504,7 @@ const registrarMerma = async (req, res) => {
                 movimiento: movimiento[0]
             }
         });
-        
+
     } catch (error) {
         await session.abortTransaction();
         console.error('Error al registrar merma:', error);
@@ -532,13 +532,13 @@ const obtenerMovimientos = async (req, res) => {
             page = 1,
             limit = 50
         } = req.query;
-        
+
         const filtros = {};
-        
+
         if (productoId) filtros.producto = productoId;
         if (sucursal) filtros.sucursal = sucursal;
         if (tipoMovimiento) filtros.tipoMovimiento = tipoMovimiento;
-        
+
         // Filtro por fechas
         if (fechaInicio || fechaFin) {
             filtros.createdAt = {};
@@ -549,18 +549,18 @@ const obtenerMovimientos = async (req, res) => {
                 filtros.createdAt.$lte = fechaFinAjustada;
             }
         }
-        
+
         const skip = (page - 1) * limit;
-        
+
         const movimientos = await MovimientoInventario.find(filtros)
             .populate('producto')
             .populate('usuario', 'nombre email')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(skip);
-        
+
         const total = await MovimientoInventario.countDocuments(filtros);
-        
+
         res.json({
             success: true,
             data: movimientos,
@@ -571,7 +571,7 @@ const obtenerMovimientos = async (req, res) => {
                 totalPaginas: Math.ceil(total / limit)
             }
         });
-        
+
     } catch (error) {
         console.error('Error al obtener movimientos:', error);
         res.status(500).json({
@@ -588,20 +588,20 @@ const obtenerMovimientos = async (req, res) => {
 const obtenerMovimientosProducto = async (req, res) => {
     try {
         const { limit = 20 } = req.query;
-        
+
         const movimientos = await MovimientoInventario.find({
             producto: req.params.productoId
         })
             .populate('usuario', 'nombre')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit));
-        
+
         res.json({
             success: true,
             total: movimientos.length,
             data: movimientos
         });
-        
+
     } catch (error) {
         console.error('Error al obtener movimientos del producto:', error);
         res.status(500).json({
@@ -618,10 +618,10 @@ const obtenerMovimientosProducto = async (req, res) => {
 const obtenerValoracionInventario = async (req, res) => {
     try {
         const { sucursal } = req.query;
-        
+
         const filtros = { activo: true };
-        if (sucursal) filtros.sucursal = sucursal;
-        
+        if (sucursal) filtros.sucursal = mongoose.Types.ObjectId(sucursal);
+
         const valoracion = await Producto.aggregate([
             { $match: filtros },
             {
@@ -639,7 +639,7 @@ const obtenerValoracionInventario = async (req, res) => {
             },
             { $sort: { _id: 1 } }
         ]);
-        
+
         // Calcular totales generales
         const totales = valoracion.reduce((acc, item) => ({
             totalProductos: acc.totalProductos + item.totalProductos,
@@ -647,12 +647,12 @@ const obtenerValoracionInventario = async (req, res) => {
             valorCosto: acc.valorCosto + item.valorCosto,
             valorVenta: acc.valorVenta + item.valorVenta
         }), { totalProductos: 0, totalUnidades: 0, valorCosto: 0, valorVenta: 0 });
-        
+
         const utilidadPotencial = totales.valorVenta - totales.valorCosto;
-        const margenPotencial = totales.valorVenta > 0 
+        const margenPotencial = totales.valorVenta > 0
             ? ((utilidadPotencial / totales.valorVenta) * 100).toFixed(2)
             : 0;
-        
+
         res.json({
             success: true,
             totales: {
@@ -662,7 +662,7 @@ const obtenerValoracionInventario = async (req, res) => {
             },
             porSucursal: valoracion
         });
-        
+
     } catch (error) {
         console.error('Error al obtener valoración:', error);
         res.status(500).json({

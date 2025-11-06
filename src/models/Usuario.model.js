@@ -28,6 +28,10 @@ const usuarioSchema = new mongoose.Schema({
         enum: ['admin', 'gerente', 'vendedor'],
         default: 'vendedor'
     },
+    sucursal: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Sucursal'
+    },
     activo: {
         type: Boolean,
         default: true
@@ -40,12 +44,12 @@ const usuarioSchema = new mongoose.Schema({
 });
 
 // Middleware para hashear la contraseña antes de guardar
-usuarioSchema.pre('save', async function(next) {
+usuarioSchema.pre('save', async function (next) {
     // Solo hashear si la contraseña fue modificada o es nueva
     if (!this.isModified('password')) {
         return next();
     }
-    
+
     try {
         // Generar salt y hashear la contraseña
         const salt = await bcrypt.genSalt(10);
@@ -57,12 +61,12 @@ usuarioSchema.pre('save', async function(next) {
 });
 
 // Método para comparar contraseñas
-usuarioSchema.methods.compararPassword = async function(passwordIngresado) {
+usuarioSchema.methods.compararPassword = async function (passwordIngresado) {
     return await bcrypt.compare(passwordIngresado, this.password);
 };
 
 // Método para no devolver información sensible
-usuarioSchema.methods.toJSON = function() {
+usuarioSchema.methods.toJSON = function () {
     const usuario = this.toObject();
     delete usuario.password;
     return usuario;

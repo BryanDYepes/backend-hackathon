@@ -1,24 +1,27 @@
 const Venta = require('../models/Venta.model');
 const Producto = require('../models/Producto.model');
 
-// Obtener tendencias de ventas (predicción simple)
-const obtenerTendencias = async (mesesAtras = 6) => {
+// Obtener tendencias de ventas (con filtro de sucursal)
+const obtenerTendencias = async (mesesAtras = 6, sucursal = null) => {
     try {
         const fechaInicio = new Date();
         fechaInicio.setMonth(fechaInicio.getMonth() - mesesAtras);
 
+        const filtros = {
+            estadoVenta: 'Completada',
+            fecha: { $gte: fechaInicio }
+        };
+        
+        if (sucursal) filtros.sucursal = sucursal;
+
         const ventasMensuales = await Venta.aggregate([
-            {
-                $match: {
-                    estadoVenta: 'Completada',
-                    fecha: { $gte: fechaInicio }
-                }
-            },
+            { $match: filtros },
             {
                 $group: {
                     _id: {
                         año: { $year: '$fecha' },
-                        mes: { $month: '$fecha' }
+                        mes: { $month: '$fecha' },
+                        ...(sucursal ? {} : { sucursal: '$sucursal' })
                     },
                     totalVentas: { $sum: 1 },
                     totalIngresos: { $sum: '$total' }
@@ -46,37 +49,41 @@ const obtenerTendencias = async (mesesAtras = 6) => {
     }
 };
 
-// Identificar productos con riesgo de sobre-stock
-const identificarSobreStock = async (mesesHistorico = 3) => {
+// Identificar productos con riesgo de sobre-stock (por sucursal)
+const identificarSobreStock = async (mesesHistorico = 3, sucursal = null) => {
     try {
         const fechaInicio = new Date();
         fechaInicio.setMonth(fechaInicio.getMonth() - mesesHistorico);
 
+        const filtrosVenta = {
+            estadoVenta: 'Completada',
+            fecha: { $gte: fechaInicio }
+        };
+        
+        if (sucursal) filtrosVenta.sucursal = sucursal;
+
         // Obtener ventas promedio por producto
         const ventasPromedio = await Venta.aggregate([
-            {
-                $match: {
-                    estadoVenta: 'Completada',
-                    fecha: { $gte: fechaInicio }
-                }
-            },
+            { $match: filtrosVenta },
             { $unwind: '$items' },
             {
                 $group: {
                     _id: '$items.producto',
                     nombreProducto: { $first: '$items.nombreProducto' },
-                    ventaMensualPromedio: {
-                        $avg: '$items.cantidad'
-                    }
+                    ventaMensualPromedio: { $avg: '$items.cantidad' }
                 }
             }
         ]);
 
         // Comparar con stock actual
         const productosRiesgo = [];
+        const filtrosProducto = sucursal ? { sucursal } : {};
 
         for (const item of ventasPromedio) {
-            const producto = await Producto.findById(item._id);
+            const producto = await Producto.findOne({ 
+                _id: item._id, 
+                ...filtrosProducto 
+            }).populate('sucursal', 'nombre codigo');
 
             if (!producto) continue;
 
@@ -92,6 +99,7 @@ const identificarSobreStock = async (mesesHistorico = 3) => {
                     codigo: producto.codigo,
                     nombre: producto.nombre,
                     categoria: producto.categoria,
+                    sucursal: producto.sucursal,
                     stockActual: producto.stockActual,
                     ventaMensualPromedio: item.ventaMensualPromedio.toFixed(2),
                     mesesInventario: parseFloat(mesesInventario),
@@ -106,20 +114,21 @@ const identificarSobreStock = async (mesesHistorico = 3) => {
     }
 };
 
-// Sugerencias de reabastecimiento inteligente
-const sugerirReabastecimiento = async (diasProyeccion = 30) => {
+// Sugerencias de reabastecimiento inteligente (por sucursal)
+const sugerirReabastecimiento = async (diasProyeccion = 30, sucursal = null) => {
     try {
         const fechaInicio = new Date();
-        fechaInicio.setDate(fechaInicio.getDate() - 90); // Últimos 90 días
+        fechaInicio.setDate(fechaInicio.getDate() - 90);
 
-        // Calcular venta diaria promedio por producto
+        const filtrosVenta = {
+            estadoVenta: 'Completada',
+            fecha: { $gte: fechaInicio }
+        };
+        
+        if (sucursal) filtrosVenta.sucursal = sucursal;
+
         const ventasDiarias = await Venta.aggregate([
-            {
-                $match: {
-                    estadoVenta: 'Completada',
-                    fecha: { $gte: fechaInicio }
-                }
-            },
+            { $match: filtrosVenta },
             { $unwind: '$items' },
             {
                 $group: {
@@ -133,19 +142,20 @@ const sugerirReabastecimiento = async (diasProyeccion = 30) => {
 
         const sugerencias = [];
         const dias = 90;
+        const filtrosProducto = { activo: true };
+        if (sucursal) filtrosProducto.sucursal = sucursal;
 
         for (const item of ventasDiarias) {
-            const producto = await Producto.findById(item._id);
+            const producto = await Producto.findOne({ 
+                _id: item._id, 
+                ...filtrosProducto 
+            }).populate('sucursal', 'nombre codigo');
 
-            if (!producto || !producto.activo) continue;
+            if (!producto) continue;
 
-            // Venta diaria promedio
             const ventaDiaria = item.totalVendido / dias;
-
-            // Días de stock disponible
             const diasStock = ventaDiaria > 0 ? producto.stockActual / ventaDiaria : 999;
 
-            // Si el stock actual no cubre el período de proyección
             if (diasStock < diasProyeccion) {
                 const cantidadSugerida = Math.ceil(
                     (ventaDiaria * diasProyeccion) - producto.stockActual
@@ -172,19 +182,21 @@ const sugerirReabastecimiento = async (diasProyeccion = 30) => {
     }
 };
 
-// Análisis de rentabilidad por producto
-const analizarRentabilidad = async (fechaInicio, fechaFin) => {
+// Análisis de rentabilidad por producto (con sucursal)
+const analizarRentabilidad = async (fechaInicio, fechaFin, sucursal = null) => {
     try {
         const inicio = new Date(fechaInicio);
         const fin = new Date(fechaFin);
 
+        const filtros = {
+            estadoVenta: 'Completada',
+            fecha: { $gte: inicio, $lte: fin }
+        };
+        
+        if (sucursal) filtros.sucursal = sucursal;
+
         const rentabilidad = await Venta.aggregate([
-            {
-                $match: {
-                    estadoVenta: 'Completada',
-                    fecha: { $gte: inicio, $lte: fin }
-                }
-            },
+            { $match: filtros },
             { $unwind: '$items' },
             {
                 $lookup: {
@@ -196,11 +208,20 @@ const analizarRentabilidad = async (fechaInicio, fechaFin) => {
             },
             { $unwind: '$productoInfo' },
             {
+                $lookup: {
+                    from: 'sucursals',
+                    localField: 'sucursal',
+                    foreignField: '_id',
+                    as: 'sucursalInfo'
+                }
+            },
+            {
                 $group: {
                     _id: '$items.producto',
                     nombre: { $first: '$items.nombreProducto' },
                     codigo: { $first: '$items.codigoProducto' },
                     categoria: { $first: '$items.categoria' },
+                    sucursal: { $first: { $arrayElemAt: ['$sucursalInfo', 0] } },
                     cantidadVendida: { $sum: '$items.cantidad' },
                     totalIngresos: { $sum: '$items.subtotal' },
                     precioCompra: { $first: '$productoInfo.precioCompra' },
@@ -221,6 +242,11 @@ const analizarRentabilidad = async (fechaInicio, fechaFin) => {
                 codigo: item.codigo,
                 nombre: item.nombre,
                 categoria: item.categoria,
+                sucursal: item.sucursal ? {
+                    _id: item.sucursal._id,
+                    nombre: item.sucursal.nombre,
+                    codigo: item.sucursal.codigo
+                } : null,
                 cantidadVendida: item.cantidadVendida,
                 totalIngresos: item.totalIngresos,
                 costoTotal,
@@ -235,19 +261,21 @@ const analizarRentabilidad = async (fechaInicio, fechaFin) => {
     }
 };
 
-// Obtener horarios pico de ventas
-const obtenerHorariosPico = async (fechaInicio, fechaFin) => {
+// Obtener horarios pico de ventas (con sucursal)
+const obtenerHorariosPico = async (fechaInicio, fechaFin, sucursal = null) => {
     try {
         const inicio = new Date(fechaInicio);
         const fin = new Date(fechaFin);
 
+        const filtros = {
+            estadoVenta: 'Completada',
+            fecha: { $gte: inicio, $lte: fin }
+        };
+        
+        if (sucursal) filtros.sucursal = sucursal;
+
         const ventasPorHora = await Venta.aggregate([
-            {
-                $match: {
-                    estadoVenta: 'Completada',
-                    fecha: { $gte: inicio, $lte: fin }
-                }
-            },
+            { $match: filtros },
             {
                 $group: {
                     _id: { $hour: '$fecha' },

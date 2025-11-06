@@ -44,14 +44,14 @@ const movimientoInventarioSchema = new mongoose.Schema({
         required: true
     },
     sucursal: {
-        type: String,
-        required: true,
-        trim: true
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Sucursal',
+        required: true
     },
     // Para transferencias
     sucursalDestino: {
-        type: String,
-        trim: true
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Sucursal'
     },
     usuario: {
         type: mongoose.Schema.Types.ObjectId,
@@ -95,7 +95,7 @@ movimientoInventarioSchema.index({ tipoMovimiento: 1 });
 movimientoInventarioSchema.index({ usuario: 1 });
 
 // Middleware pre-save para calcular valor total
-movimientoInventarioSchema.pre('save', function(next) {
+movimientoInventarioSchema.pre('save', function (next) {
     if (this.costoUnitario) {
         this.valorTotal = this.cantidad * this.costoUnitario;
     }

@@ -134,7 +134,7 @@ const obtenerVentas = async (req, res) => {
         // Construir filtros
         const filtros = {};
         
-        if (sucursal) filtros.sucursal = sucursal;
+        if (sucursal) filtros.sucursal = mongoose.Types.ObjectId(sucursal);
         if (vendedor) filtros.vendedor = vendedor;
         if (estadoVenta) filtros.estadoVenta = estadoVenta;
         if (metodoPago) filtros.metodoPago = metodoPago;

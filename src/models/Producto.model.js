@@ -78,9 +78,9 @@ const productoSchema = new mongoose.Schema({
         min: [0, 'El stock mínimo no puede ser negativo']
     },
     sucursal: {
-        type: String,
-        required: [true, 'La sucursal es obligatoria'],
-        trim: true
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Sucursal',
+        required: [true, 'La sucursal es obligatoria']
     },
     proveedor: {
         type: String,
@@ -110,14 +110,14 @@ productoSchema.index({ sucursal: 1 });
 productoSchema.index({ activo: 1 });
 
 // Middleware pre-save para actualizar alerta de stock
-productoSchema.pre('save', function(next) {
+productoSchema.pre('save', function (next) {
     // Verificar si el stock actual es menor o igual al stock mínimo
     this.alertaStock = this.stockActual <= this.stockMinimo;
     next();
 });
 
 // Método virtual para calcular margen de ganancia
-productoSchema.virtual('margenGanancia').get(function() {
+productoSchema.virtual('margenGanancia').get(function () {
     if (this.precioCompra === 0) return 0;
     return ((this.precioVenta - this.precioCompra) / this.precioCompra * 100).toFixed(2);
 });

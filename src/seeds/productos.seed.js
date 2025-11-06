@@ -43,7 +43,6 @@ const categoriasProductos = {
     ]
 };
 
-const sucursales = ['Popayán Centro', 'Popayán Norte', 'Cali Centro', 'Cali Sur'];
 const proveedores = ['Textiles SA', 'Moda Colombia', 'Confecciones del Valle', 'Distribuidora Fashion'];
 
 // Función para generar precio de venta con margen realista
@@ -52,8 +51,12 @@ const calcularPrecioVenta = (precioCompra) => {
     return Math.round(precioCompra * margen / 1000) * 1000; // Redondear a miles
 };
 
-const crearProductos = async () => {
+const crearProductos = async (sucursales) => {
     try {
+        if (!sucursales || sucursales.length === 0) {
+            throw new Error('No hay sucursales disponibles para asignar productos');
+        }
+        
         const productos = [];
         let index = 1;
         
@@ -65,6 +68,8 @@ const crearProductos = async () => {
                 for (let i = 0; i < 3; i++) { // 3 variaciones por categoría
                     const talla = tallas[Math.floor(Math.random() * tallas.length)];
                     const color = colores[Math.floor(Math.random() * colores.length)];
+                    
+                    // Asignar sucursal usando ObjectId
                     const sucursal = sucursales[Math.floor(Math.random() * sucursales.length)];
                     const proveedor = proveedores[Math.floor(Math.random() * proveedores.length)];
                     
@@ -101,7 +106,7 @@ const crearProductos = async () => {
                         precioVenta,
                         stockActual: stockInicial,
                         stockMinimo: 5,
-                        sucursal,
+                        sucursal: sucursal._id, // Usar ObjectId de la sucursal
                         proveedor,
                         activo: true
                     });
@@ -114,11 +119,14 @@ const crearProductos = async () => {
         // Crear algunos productos con stock bajo para pruebas
         for (let i = 0; i < 10; i++) {
             const productoExistente = productos[Math.floor(Math.random() * productos.length)];
+            const sucursal = sucursales[Math.floor(Math.random() * sucursales.length)];
+            
             productos.push({
                 ...productoExistente,
                 codigo: generarCodigo(productoExistente.categoria, productoExistente.genero, index++),
                 stockActual: Math.floor(Math.random() * 5), // Stock bajo
-                color: 'Edición especial'
+                color: 'Edición especial',
+                sucursal: sucursal._id // Usar ObjectId de la sucursal
             });
         }
         

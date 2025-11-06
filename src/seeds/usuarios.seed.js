@@ -1,6 +1,7 @@
 const Usuario = require('../models/Usuario.model');
 
-const usuariosData = [
+// Datos base sin sucursales (se asignarán después)
+const usuariosDataBase = [
     {
         nombre: 'Administrador Principal',
         email: 'admin@retail.com',
@@ -52,8 +53,27 @@ const usuariosData = [
     }
 ];
 
-const crearUsuarios = async () => {
+const crearUsuarios = async (sucursales = null) => {
     try {
+        // Si hay sucursales, asignar usuarios a sucursales
+        const usuariosData = usuariosDataBase.map((usuario, index) => {
+            // Admin no tiene sucursal asignada
+            if (usuario.rol === 'admin') {
+                return usuario;
+            }
+            
+            // Asignar sucursal si están disponibles
+            if (sucursales && sucursales.length > 0) {
+                const sucursalIndex = index % sucursales.length;
+                return {
+                    ...usuario,
+                    sucursal: sucursales[sucursalIndex]._id
+                };
+            }
+            
+            return usuario;
+        });
+        
         const usuarios = await Usuario.create(usuariosData);
         return usuarios;
     } catch (error) {

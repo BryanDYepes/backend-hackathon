@@ -22,7 +22,7 @@ const obtenerProductos = async (req, res) => {
         if (categoria) filtros.categoria = categoria;
         if (genero) filtros.genero = genero;
         if (talla) filtros.talla = talla;
-        if (sucursal) filtros.sucursal = sucursal;
+        if (sucursal) filtros.sucursal = mongoose.Types.ObjectId(sucursal);
         if (activo !== undefined) filtros.activo = activo === 'true';
         if (alertaStock !== undefined) filtros.alertaStock = alertaStock === 'true';
         

@@ -3,6 +3,7 @@ require('dotenv').config();
 const conectarDB = require('../config/db');
 
 // Importar todos los seeds
+const { crearSucursales } = require('./sucursales.seed');
 const { crearUsuarios } = require('./usuarios.seed');
 const { crearProductos } = require('./productos.seed');
 const { crearVentas } = require('./ventas.seed');
@@ -37,32 +38,65 @@ const ejecutarSeeds = async () => {
         await mongoose.connection.db.dropDatabase();
         log('✅ Base de datos limpiada', 'verde');
         
-        // Crear usuarios
+        // 1. Crear sucursales PRIMERO (sin usuarios asignados)
+        log('\n🏪 Creando sucursales...', 'azul');
+        const sucursales = await crearSucursales([]);
+        log(`✅ ${sucursales.length} sucursales creadas`, 'verde');
+        
+        // 2. Crear usuarios (asignándoles sucursales)
         log('\n👥 Creando usuarios...', 'azul');
-        const usuarios = await crearUsuarios();
+        const usuarios = await crearUsuarios(sucursales);
         log(`✅ ${usuarios.length} usuarios creados`, 'verde');
         
-        // Crear productos
+        // 3. Actualizar sucursales con gerentes asignados
+        log('\n👤 Asignando gerentes a sucursales...', 'azul');
+        const gerentes = usuarios.filter(u => u.rol === 'gerente');
+        if (gerentes.length >= 2) {
+            await mongoose.model('Sucursal').findByIdAndUpdate(
+                sucursales[0]._id,
+                { 
+                    gerente: gerentes[0]._id,
+                    nombreGerente: gerentes[0].nombre
+                }
+            );
+            
+            await mongoose.model('Sucursal').findByIdAndUpdate(
+                sucursales[1]._id,
+                { 
+                    gerente: gerentes[1]._id,
+                    nombreGerente: gerentes[1].nombre
+                }
+            );
+            log('✅ Gerentes asignados a sucursales', 'verde');
+        }
+        
+        // 4. Crear productos (con sucursales asignadas)
         log('\n📦 Creando productos...', 'azul');
-        const productos = await crearProductos();
+        const productos = await crearProductos(sucursales);
         log(`✅ ${productos.length} productos creados`, 'verde');
         
-        // Crear movimientos de inventario
+        // 5. Crear movimientos de inventario
         log('\n📊 Creando movimientos de inventario...', 'azul');
         const movimientos = await crearMovimientosInventario(usuarios, productos);
         log(`✅ ${movimientos.length} movimientos creados`, 'verde');
         
-        // Crear ventas
+        // 6. Crear ventas
         log('\n💰 Creando ventas...', 'azul');
         const ventas = await crearVentas(usuarios, productos);
         log(`✅ ${ventas.length} ventas creadas`, 'verde');
         
         log('\n🎉 ¡Seeds ejecutados exitosamente!', 'verde');
         log('\n📋 Resumen:', 'azul');
+        log(`   - Sucursales: ${sucursales.length}`);
         log(`   - Usuarios: ${usuarios.length}`);
         log(`   - Productos: ${productos.length}`);
         log(`   - Movimientos: ${movimientos.length}`);
         log(`   - Ventas: ${ventas.length}`);
+        
+        log('\n🏪 Sucursales creadas:', 'amarillo');
+        sucursales.forEach(s => {
+            log(`   - ${s.codigo}: ${s.nombre} (${s.direccion.ciudad})`);
+        });
         
         log('\n🔐 Credenciales de acceso:', 'amarillo');
         log('   Admin:', 'verde');
