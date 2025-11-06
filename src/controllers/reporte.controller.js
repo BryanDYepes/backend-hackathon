@@ -1,5 +1,6 @@
 const Venta = require('../models/Venta.model');
 const Producto = require('../models/Producto.model');
+const mongoose = require('mongoose');
 const {
     obtenerEstadisticasVentas,
     obtenerProductosMasVendidos,
@@ -27,7 +28,8 @@ const obtenerDashboard = async (req, res) => {
 
         // Obtener productos con stock bajo
         const filtroStock = sucursal ? { sucursal: mongoose.Types.ObjectId(sucursal), alertaStock: true, activo: true } : { alertaStock: true, activo: true };
-        const productosStockBajo = await Producto.countDocuments(filtroStock);
+        const productosStockBajo = await Producto.find(filtroStock).populate({path: 'sucursal',select: 'nombre direccion direccionCompleta',options: { lean: true }});
+
 
         // Obtener total de productos activos
         const filtroProductos = sucursal ? { sucursal: mongoose.Types.ObjectId(sucursal), activo: true } : { activo: true };
@@ -174,7 +176,21 @@ const obtenerReporteVentas = async (req, res) => {
                 break;
 
             case 'sucursal':
-                datosAgrupados = await obtenerVentasPorSucursal(inicio, fin);
+                const ventasPorSucursal = await obtenerVentasPorSucursal(inicio, fin);
+                // Hacer populate de cada sucursal
+                datosAgrupados = await Promise.all(
+                    ventasPorSucursal.map(async (item) => {
+                        const sucursal = await mongoose.model('Sucursal').findById(item._id).select('nombre direccion');
+                        return {
+                            ...item,
+                            sucursal: sucursal ? {
+                                id: sucursal._id,
+                                nombre: sucursal.nombre,
+                                direccion: sucursal.direccion
+                            } : null
+                        };
+                    })
+                );
                 break;
 
             default:

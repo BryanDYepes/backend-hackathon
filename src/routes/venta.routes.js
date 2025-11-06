@@ -23,6 +23,6 @@ router.get('/:id', obtenerVentaPorId);
 
 // Rutas de creación y modificación
 router.post('/', crearVenta);
-router.patch('/:id/cancelar', verificarRol('admin', 'gerente'), cancelarVenta);
+router.patch('/:id/cancelar', verificarRol('admin', 'gerente','vendedor'), cancelarVenta);
 
 module.exports = router;

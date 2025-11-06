@@ -29,8 +29,9 @@ const obtenerProductos = async (req, res) => {
         // Calcular paginación
         const skip = (page - 1) * limit;
         
-        // Ejecutar consulta con paginación
+        // Ejecutar consulta con paginación y populate
         const productos = await Producto.find(filtros)
+            .populate('sucursal', 'nombre')
             .sort({ createdAt: -1 }) // Más recientes primero
             .limit(parseInt(limit))
             .skip(skip);
@@ -40,7 +41,15 @@ const obtenerProductos = async (req, res) => {
         
         res.json({
             success: true,
-            data: productos,
+            data: productos.map(p => ({
+                ...p.toObject(),
+                sucursal: p.sucursal
+                    ? {
+                        id: p.sucursal._id,
+                        nombre: p.sucursal.nombre
+                    }
+                    : null
+            })),
             paginacion: {
                 total,
                 pagina: parseInt(page),
@@ -64,7 +73,7 @@ const obtenerProductos = async (req, res) => {
 // @access  Private
 const obtenerProductoPorId = async (req, res) => {
     try {
-        const producto = await Producto.findById(req.params.id);
+        const producto = await Producto.findById(req.params.id).populate('sucursal', 'nombre');
         
         if (!producto) {
             return res.status(404).json({
@@ -75,7 +84,15 @@ const obtenerProductoPorId = async (req, res) => {
         
         res.json({
             success: true,
-            data: producto
+            data: {
+                ...producto.toObject(),
+                sucursal: producto.sucursal
+                    ? {
+                        id: producto.sucursal._id,
+                        nombre: producto.sucursal.nombre
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -95,7 +112,7 @@ const obtenerProductoPorCodigo = async (req, res) => {
     try {
         const producto = await Producto.findOne({ 
             codigo: req.params.codigo.toUpperCase() 
-        });
+        }).populate('sucursal', 'nombre');
         
         if (!producto) {
             return res.status(404).json({
@@ -106,7 +123,15 @@ const obtenerProductoPorCodigo = async (req, res) => {
         
         res.json({
             success: true,
-            data: producto
+            data: {
+                ...producto.toObject(),
+                sucursal: producto.sucursal
+                    ? {
+                        id: producto.sucursal._id,
+                        nombre: producto.sucursal.nombre
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -177,10 +202,21 @@ const crearProducto = async (req, res) => {
             imagen
         });
         
+        // Hacer populate para obtener los datos de la sucursal
+        await producto.populate('sucursal', 'nombre');
+        
         res.status(201).json({
             success: true,
             mensaje: 'Producto creado exitosamente',
-            data: producto
+            data: {
+                ...producto.toObject(),
+                sucursal: producto.sucursal
+                    ? {
+                        id: producto.sucursal._id,
+                        nombre: producto.sucursal.nombre
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -223,10 +259,21 @@ const actualizarProducto = async (req, res) => {
         
         await producto.save();
         
+        // Hacer populate después de guardar
+        await producto.populate('sucursal', 'nombre');
+        
         res.json({
             success: true,
             mensaje: 'Producto actualizado exitosamente',
-            data: producto
+            data: {
+                ...producto.toObject(),
+                sucursal: producto.sucursal
+                    ? {
+                        id: producto.sucursal._id,
+                        nombre: producto.sucursal.nombre
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -315,10 +362,21 @@ const actualizarStock = async (req, res) => {
         
         await producto.save();
         
+        // Hacer populate después de guardar
+        await producto.populate('sucursal', 'nombre');
+        
         res.json({
             success: true,
             mensaje: 'Stock actualizado exitosamente',
-            data: producto
+            data: {
+                ...producto.toObject(),
+                sucursal: producto.sucursal
+                    ? {
+                        id: producto.sucursal._id,
+                        nombre: producto.sucursal.nombre
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -339,12 +397,22 @@ const obtenerProductosStockBajo = async (req, res) => {
         const productos = await Producto.find({ 
             alertaStock: true,
             activo: true
-        }).sort({ stockActual: 1 }); // Ordenar por stock más bajo primero
+        })
+        .populate('sucursal', 'nombre')
+        .sort({ stockActual: 1 }); // Ordenar por stock más bajo primero
         
         res.json({
             success: true,
             total: productos.length,
-            data: productos
+            data: productos.map(p => ({
+                ...p.toObject(),
+                sucursal: p.sucursal
+                    ? {
+                        id: p.sucursal._id,
+                        nombre: p.sucursal.nombre
+                    }
+                    : null
+            }))
         });
         
     } catch (error) {
@@ -371,12 +439,22 @@ const buscarProductos = async (req, res) => {
                 { codigo: { $regex: termino, $options: 'i' } }
             ],
             activo: true
-        }).limit(20);
+        })
+        .populate('sucursal', 'nombre')
+        .limit(20);
         
         res.json({
             success: true,
             total: productos.length,
-            data: productos
+            data: productos.map(p => ({
+                ...p.toObject(),
+                sucursal: p.sucursal
+                    ? {
+                        id: p.sucursal._id,
+                        nombre: p.sucursal.nombre
+                    }
+                    : null
+            }))
         });
         
     } catch (error) {

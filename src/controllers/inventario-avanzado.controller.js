@@ -5,6 +5,7 @@ const {
     calcularIndiceRotacion,
     analisisABC
 } = require('../services/inventario.service');
+const Sucursal = require('../models/Sucursal.model');
 
 // @desc    Obtener resumen de movimientos por tipo
 // @route   GET /api/inventario/resumen-movimientos
@@ -28,6 +29,18 @@ const obtenerResumen = async (req, res) => {
             totalCantidad: acc.totalCantidad + item.cantidad,
             totalValor: acc.totalValor + item.valorTotal
         }), { totalMovimientos: 0, totalCantidad: 0, totalValor: 0 });
+
+        // Obtener información de la sucursal si se especificó
+        let infoSucursal = null;
+        if (sucursal) {
+            const sucursalDoc = await Sucursal.findById(sucursal);
+            if (sucursalDoc) {
+                infoSucursal = {
+                    id: sucursalDoc._id,
+                    nombre: sucursalDoc.nombre
+                };
+            }
+        }
         
         res.json({
             success: true,
@@ -35,6 +48,7 @@ const obtenerResumen = async (req, res) => {
                 inicio: new Date(fechaInicio).toLocaleDateString('es-CO'),
                 fin: new Date(fechaFin).toLocaleDateString('es-CO')
             },
+            sucursal: infoSucursal,
             totales,
             detalles: resumen
         });
@@ -96,10 +110,23 @@ const obtenerDiscrepancias = async (req, res) => {
         const { sucursal } = req.query;
         
         const discrepancias = await detectarDiscrepancias(sucursal);
+
+        // Obtener información de la sucursal si se especificó
+        let infoSucursal = null;
+        if (sucursal) {
+            const sucursalDoc = await Sucursal.findById(sucursal);
+            if (sucursalDoc) {
+                infoSucursal = {
+                    id: sucursalDoc._id,
+                    nombre: sucursalDoc.nombre
+                };
+            }
+        }
         
         res.json({
             success: true,
             total: discrepancias.length,
+            sucursal: infoSucursal,
             mensaje: discrepancias.length > 0 
                 ? 'Se encontraron discrepancias que requieren atención'
                 : 'No se encontraron discrepancias',

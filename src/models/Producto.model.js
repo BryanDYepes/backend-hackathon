@@ -5,7 +5,6 @@ const productoSchema = new mongoose.Schema({
     codigo: {
         type: String,
         required: [true, 'El código del producto es obligatorio'],
-        unique: true,
         trim: true,
         uppercase: true
     },
@@ -22,24 +21,10 @@ const productoSchema = new mongoose.Schema({
         type: String,
         required: [true, 'La categoría es obligatoria'],
         enum: [
-            'ABRIGO',
-            'BERMUDA',
-            'BUZOS',
-            'BUZO',
-            'CAMISAS',
-            'FALDA',
-            'HOGAR',
-            'JEANS TERMINADOS',
-            'PANTALONES',
-            'PIJAMAS',
-            'POLOS',
-            'ROPA DE BAÑO',
-            'ROPA INTERIOR',
-            'TERCERAS PIEZAS',
-            'TSHIRT',
-            'TSHIRT TERMINADA',
-            'TERMINADAS',
-            'VESTIDOS'
+            'ABRIGO','BERMUDA','BUZOS','BUZO','CAMISAS','FALDA','HOGAR',
+            'JEANS TERMINADOS','PANTALONES','PIJAMAS','POLOS','ROPA DE BAÑO',
+            'ROPA INTERIOR','TERCERAS PIEZAS','TSHIRT','TSHIRT TERMINADA',
+            'TERMINADAS','VESTIDOS'
         ]
     },
     genero: {
@@ -50,7 +35,7 @@ const productoSchema = new mongoose.Schema({
     talla: {
         type: String,
         required: [true, 'La talla es obligatoria'],
-        enum: ['XXS', 'XS', 'S', 'M', 'L', 'XL', '4', '6', '8', '10', '12', '14', '16']
+        enum: ['XXS','XS','S','M','L','XL','4','6','8','10','12','14','16']
     },
     color: {
         type: String,
@@ -87,43 +72,68 @@ const productoSchema = new mongoose.Schema({
         trim: true
     },
     imagen: {
-        type: String, // URL de la imagen
+        type: String,
         default: null
     },
     activo: {
         type: Boolean,
         default: true
     },
-    // Campo calculado para saber si hay alerta de stock bajo
     alertaStock: {
         type: Boolean,
         default: false
     }
 }, {
-    timestamps: true // Crea createdAt y updatedAt automáticamente
+    timestamps: true
 });
 
-// Índices para mejorar el rendimiento de las consultas
-productoSchema.index({ codigo: 1 });
+// Índices
+productoSchema.index({ codigo: 1, sucursal: 1 }, { unique: true });
 productoSchema.index({ categoria: 1, genero: 1 });
 productoSchema.index({ sucursal: 1 });
 productoSchema.index({ activo: 1 });
 
-// Middleware pre-save para actualizar alerta de stock
-productoSchema.pre('save', function (next) {
-    // Verificar si el stock actual es menor o igual al stock mínimo
+// Middleware pre-save para alerta de stock
+productoSchema.pre('save', function(next) {
     this.alertaStock = this.stockActual <= this.stockMinimo;
     next();
 });
 
-// Método virtual para calcular margen de ganancia
-productoSchema.virtual('margenGanancia').get(function () {
+// Virtual para margen de ganancia
+productoSchema.virtual('margenGanancia').get(function() {
     if (this.precioCompra === 0) return 0;
     return ((this.precioVenta - this.precioCompra) / this.precioCompra * 100).toFixed(2);
 });
 
-// Asegurar que los virtuals se incluyan en JSON
+// Incluir virtuals en JSON y objetos
 productoSchema.set('toJSON', { virtuals: true });
 productoSchema.set('toObject', { virtuals: true });
+
+// Método estático para crear producto de forma segura
+productoSchema.statics.crearProducto = async function(datos) {
+    try {
+        // Verifica si ya existe en la misma sucursal
+        const existe = await this.findOne({ codigo: datos.codigo, sucursal: datos.sucursal });
+        if (existe) {
+            return {
+                error: true,
+                mensaje: 'El producto ya existe en esta sucursal',
+                detalle: { codigo: datos.codigo, sucursal: datos.sucursal }
+            };
+        }
+
+        const producto = await this.create(datos);
+        return { error: false, producto };
+    } catch (err) {
+        if (err.code === 11000) {
+            return {
+                error: true,
+                mensaje: 'Error de duplicado detectado',
+                detalle: err.keyValue
+            };
+        }
+        throw err;
+    }
+};
 
 module.exports = mongoose.model('Producto', productoSchema);

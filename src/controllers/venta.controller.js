@@ -12,13 +12,15 @@ const crearVenta = async (req, res) => {
     
     try {
         const {
-            sucursal,
             items,
             descuento,
             metodoPago,
             observaciones,
             cliente
         } = req.body;
+        
+        // Obtener la sucursal del usuario autenticado
+        const sucursal = req.usuario.sucursal;
         
         // Validaciones básicas
         if (!sucursal || !items || items.length === 0 || !metodoPago) {
@@ -95,10 +97,32 @@ const crearVenta = async (req, res) => {
         // Confirmar la transacción
         await session.commitTransaction();
         
+        // Hacer populate después de guardar
+        await venta.populate([
+            { path: 'sucursal', select: 'nombre' },
+            { path: 'vendedor', select: 'nombre email rol' }
+        ]);
+        
         res.status(201).json({
             success: true,
             mensaje: 'Venta registrada exitosamente',
-            data: venta
+            data: {
+                ...venta.toObject(),
+                sucursal: venta.sucursal
+                    ? {
+                        id: venta.sucursal._id,
+                        nombre: venta.sucursal.nombre
+                    }
+                    : null,
+                vendedor: venta.vendedor
+                    ? {
+                        id: venta.vendedor._id,
+                        nombre: venta.vendedor.nombre,
+                        email: venta.vendedor.email,
+                        rol: venta.vendedor.rol
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -154,7 +178,8 @@ const obtenerVentas = async (req, res) => {
         const skip = (page - 1) * limit;
         
         const ventas = await Venta.find(filtros)
-            .populate('vendedor', 'nombre email')
+            .populate('sucursal', 'nombre')
+            .populate('vendedor', 'nombre email rol')
             .sort({ fecha: -1 })
             .limit(parseInt(limit))
             .skip(skip);
@@ -163,7 +188,23 @@ const obtenerVentas = async (req, res) => {
         
         res.json({
             success: true,
-            data: ventas,
+            data: ventas.map(v => ({
+                ...v.toObject(),
+                sucursal: v.sucursal
+                    ? {
+                        id: v.sucursal._id,
+                        nombre: v.sucursal.nombre
+                    }
+                    : null,
+                vendedor: v.vendedor
+                    ? {
+                        id: v.vendedor._id,
+                        nombre: v.vendedor.nombre,
+                        email: v.vendedor.email,
+                        rol: v.vendedor.rol
+                    }
+                    : null
+            })),
             paginacion: {
                 total,
                 pagina: parseInt(page),
@@ -188,6 +229,7 @@ const obtenerVentas = async (req, res) => {
 const obtenerVentaPorId = async (req, res) => {
     try {
         const venta = await Venta.findById(req.params.id)
+            .populate('sucursal', 'nombre')
             .populate('vendedor', 'nombre email rol')
             .populate('items.producto');
         
@@ -200,7 +242,23 @@ const obtenerVentaPorId = async (req, res) => {
         
         res.json({
             success: true,
-            data: venta
+            data: {
+                ...venta.toObject(),
+                sucursal: venta.sucursal
+                    ? {
+                        id: venta.sucursal._id,
+                        nombre: venta.sucursal.nombre
+                    }
+                    : null,
+                vendedor: venta.vendedor
+                    ? {
+                        id: venta.vendedor._id,
+                        nombre: venta.vendedor.nombre,
+                        email: venta.vendedor.email,
+                        rol: venta.vendedor.rol
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -221,7 +279,8 @@ const obtenerVentaPorNumero = async (req, res) => {
         const venta = await Venta.findOne({ 
             numeroVenta: req.params.numeroVenta.toUpperCase() 
         })
-            .populate('vendedor', 'nombre email')
+            .populate('sucursal', 'nombre')
+            .populate('vendedor', 'nombre email rol')
             .populate('items.producto');
         
         if (!venta) {
@@ -233,7 +292,23 @@ const obtenerVentaPorNumero = async (req, res) => {
         
         res.json({
             success: true,
-            data: venta
+            data: {
+                ...venta.toObject(),
+                sucursal: venta.sucursal
+                    ? {
+                        id: venta.sucursal._id,
+                        nombre: venta.sucursal.nombre
+                    }
+                    : null,
+                vendedor: venta.vendedor
+                    ? {
+                        id: venta.vendedor._id,
+                        nombre: venta.vendedor.nombre,
+                        email: venta.vendedor.email,
+                        rol: venta.vendedor.rol
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -291,10 +366,32 @@ const cancelarVenta = async (req, res) => {
         
         await session.commitTransaction();
         
+        // Hacer populate después de guardar
+        await venta.populate([
+            { path: 'sucursal', select: 'nombre' },
+            { path: 'vendedor', select: 'nombre email rol' }
+        ]);
+        
         res.json({
             success: true,
             mensaje: 'Venta cancelada exitosamente',
-            data: venta
+            data: {
+                ...venta.toObject(),
+                sucursal: venta.sucursal
+                    ? {
+                        id: venta.sucursal._id,
+                        nombre: venta.sucursal.nombre
+                    }
+                    : null,
+                vendedor: venta.vendedor
+                    ? {
+                        id: venta.vendedor._id,
+                        nombre: venta.vendedor.nombre,
+                        email: venta.vendedor.email,
+                        rol: venta.vendedor.rol
+                    }
+                    : null
+            }
         });
         
     } catch (error) {
@@ -328,7 +425,8 @@ const obtenerVentasDelDia = async (req, res) => {
             },
             estadoVenta: 'Completada'
         })
-            .populate('vendedor', 'nombre')
+            .populate('sucursal', 'nombre')
+            .populate('vendedor', 'nombre email rol')
             .sort({ fecha: -1 });
         
         // Calcular totales del día
@@ -342,7 +440,23 @@ const obtenerVentasDelDia = async (req, res) => {
                 totalIngresos,
                 fecha: hoy.toLocaleDateString('es-CO')
             },
-            data: ventas
+            data: ventas.map(v => ({
+                ...v.toObject(),
+                sucursal: v.sucursal
+                    ? {
+                        id: v.sucursal._id,
+                        nombre: v.sucursal.nombre
+                    }
+                    : null,
+                vendedor: v.vendedor
+                    ? {
+                        id: v.vendedor._id,
+                        nombre: v.vendedor.nombre,
+                        email: v.vendedor.email,
+                        rol: v.vendedor.rol
+                    }
+                    : null
+            }))
         });
         
     } catch (error) {
@@ -381,6 +495,8 @@ const obtenerMisVentas = async (req, res) => {
         const skip = (page - 1) * limit;
         
         const ventas = await Venta.find(filtros)
+            .populate('sucursal', 'nombre')
+            .populate('vendedor', 'nombre email rol')
             .sort({ fecha: -1 })
             .limit(parseInt(limit))
             .skip(skip);
@@ -398,7 +514,23 @@ const obtenerMisVentas = async (req, res) => {
                 totalVendido,
                 promedioVenta: cantidadVentas > 0 ? (totalVendido / cantidadVentas).toFixed(2) : 0
             },
-            data: ventas,
+            data: ventas.map(v => ({
+                ...v.toObject(),
+                sucursal: v.sucursal
+                    ? {
+                        id: v.sucursal._id,
+                        nombre: v.sucursal.nombre
+                    }
+                    : null,
+                vendedor: v.vendedor
+                    ? {
+                        id: v.vendedor._id,
+                        nombre: v.vendedor.nombre,
+                        email: v.vendedor.email,
+                        rol: v.vendedor.rol
+                    }
+                    : null
+            })),
             paginacion: {
                 total,
                 pagina: parseInt(page),

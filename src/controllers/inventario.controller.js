@@ -1,5 +1,6 @@
 const Producto = require('../models/Producto.model');
 const MovimientoInventario = require('../models/MovimientoInventario.model');
+const Sucursal = require('../models/Sucursal.model');
 const mongoose = require('mongoose');
 
 // @desc    Registrar entrada de inventario (compra)
@@ -27,8 +28,10 @@ const registrarEntrada = async (req, res) => {
             });
         }
 
-        // Buscar el producto
-        const producto = await Producto.findById(productoId).session(session);
+        // Buscar el producto con populate de sucursal
+        const producto = await Producto.findById(productoId)
+            .populate('sucursal')
+            .session(session);
 
         if (!producto) {
             await session.abortTransaction();
@@ -60,7 +63,7 @@ const registrarEntrada = async (req, res) => {
             cantidad: parseInt(cantidad),
             stockAnterior,
             stockNuevo: producto.stockActual,
-            sucursal: producto.sucursal,
+            sucursal: producto.sucursal._id,
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
             motivo: motivo || 'Entrada de mercancía',
@@ -70,11 +73,18 @@ const registrarEntrada = async (req, res) => {
 
         await session.commitTransaction();
 
+        // Formatear respuesta con sucursal
+        const productoRespuesta = producto.toObject();
+        productoRespuesta.sucursal = producto.sucursal ? {
+            id: producto.sucursal._id,
+            nombre: producto.sucursal.nombre
+        } : null;
+
         res.status(201).json({
             success: true,
             mensaje: 'Entrada de inventario registrada exitosamente',
             data: {
-                producto: producto,
+                producto: productoRespuesta,
                 movimiento: movimiento[0]
             }
         });
@@ -115,7 +125,9 @@ const registrarSalida = async (req, res) => {
             });
         }
 
-        const producto = await Producto.findById(productoId).session(session);
+        const producto = await Producto.findById(productoId)
+            .populate('sucursal')
+            .session(session);
 
         if (!producto) {
             await session.abortTransaction();
@@ -146,7 +158,7 @@ const registrarSalida = async (req, res) => {
             cantidad: parseInt(cantidad),
             stockAnterior,
             stockNuevo: producto.stockActual,
-            sucursal: producto.sucursal,
+            sucursal: producto.sucursal._id,
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
             motivo,
@@ -156,11 +168,17 @@ const registrarSalida = async (req, res) => {
 
         await session.commitTransaction();
 
+        const productoRespuesta = producto.toObject();
+        productoRespuesta.sucursal = producto.sucursal ? {
+            id: producto.sucursal._id,
+            nombre: producto.sucursal.nombre
+        } : null;
+
         res.status(201).json({
             success: true,
             mensaje: 'Salida de inventario registrada exitosamente',
             data: {
-                producto: producto,
+                producto: productoRespuesta,
                 movimiento: movimiento[0]
             }
         });
@@ -201,7 +219,9 @@ const registrarAjuste = async (req, res) => {
             });
         }
 
-        const producto = await Producto.findById(productoId).session(session);
+        const producto = await Producto.findById(productoId)
+            .populate('sucursal')
+            .session(session);
 
         if (!producto) {
             await session.abortTransaction();
@@ -237,7 +257,7 @@ const registrarAjuste = async (req, res) => {
             cantidad: Math.abs(diferencia),
             stockAnterior,
             stockNuevo: producto.stockActual,
-            sucursal: producto.sucursal,
+            sucursal: producto.sucursal._id,
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
             motivo,
@@ -247,11 +267,17 @@ const registrarAjuste = async (req, res) => {
 
         await session.commitTransaction();
 
+        const productoRespuesta = producto.toObject();
+        productoRespuesta.sucursal = producto.sucursal ? {
+            id: producto.sucursal._id,
+            nombre: producto.sucursal.nombre
+        } : null;
+
         res.status(201).json({
             success: true,
             mensaje: 'Ajuste de inventario registrado exitosamente',
             data: {
-                producto: producto,
+                producto: productoRespuesta,
                 movimiento: movimiento[0],
                 diferencia
             }
@@ -293,7 +319,19 @@ const registrarTransferencia = async (req, res) => {
             });
         }
 
-        const producto = await Producto.findById(productoId).session(session);
+        // Verificar que la sucursal destino existe
+        const sucursalDestinoDoc = await Sucursal.findById(sucursalDestino).session(session);
+        if (!sucursalDestinoDoc) {
+            await session.abortTransaction();
+            return res.status(404).json({
+                error: true,
+                mensaje: 'Sucursal destino no encontrada'
+            });
+        }
+
+        const producto = await Producto.findById(productoId)
+            .populate('sucursal')
+            .session(session);
 
         if (!producto) {
             await session.abortTransaction();
@@ -304,7 +342,7 @@ const registrarTransferencia = async (req, res) => {
         }
 
         // Verificar que la sucursal destino sea diferente
-        if (producto.sucursal === sucursalDestino) {
+        if (producto.sucursal._id.toString() === sucursalDestino) {
             await session.abortTransaction();
             return res.status(400).json({
                 error: true,
@@ -334,11 +372,11 @@ const registrarTransferencia = async (req, res) => {
             cantidad: parseInt(cantidad),
             stockAnterior,
             stockNuevo: producto.stockActual,
-            sucursal: producto.sucursal,
-            sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
+            sucursal: producto.sucursal._id,
+            sucursalDestino: sucursalDestinoDoc._id,
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
-            motivo: `Transferencia a ${sucursalDestino}`,
+            motivo: `Transferencia a ${sucursalDestinoDoc.nombre}`,
             observaciones,
             costoUnitario: producto.precioCompra
         }], { session });
@@ -346,7 +384,7 @@ const registrarTransferencia = async (req, res) => {
         // Buscar o crear producto en sucursal destino
         let productoDestino = await Producto.findOne({
             codigo: producto.codigo,
-            sucursal: sucursalDestino
+            sucursal: sucursalDestinoDoc._id
         }).session(session);
 
         if (!productoDestino) {
@@ -363,7 +401,7 @@ const registrarTransferencia = async (req, res) => {
                 precioVenta: producto.precioVenta,
                 stockActual: parseInt(cantidad),
                 stockMinimo: producto.stockMinimo,
-                sucursal: mongoose.Types.ObjectId(sucursalDestino),
+                sucursal: sucursalDestinoDoc._id,
                 proveedor: producto.proveedor,
                 imagen: producto.imagen
             }], { session });
@@ -379,10 +417,10 @@ const registrarTransferencia = async (req, res) => {
                 cantidad: parseInt(cantidad),
                 stockAnterior: 0,
                 stockNuevo: parseInt(cantidad),
-                sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
+                sucursal: sucursalDestinoDoc._id,
                 usuario: req.usuario._id,
                 nombreUsuario: req.usuario.nombre,
-                motivo: `Transferencia desde ${producto.sucursal}`,
+                motivo: `Transferencia desde ${producto.sucursal.nombre}`,
                 observaciones,
                 costoUnitario: producto.precioCompra
             }], { session });
@@ -400,10 +438,10 @@ const registrarTransferencia = async (req, res) => {
                 cantidad: parseInt(cantidad),
                 stockAnterior: stockAnteriorDestino,
                 stockNuevo: productoDestino.stockActual,
-                sucursalDestino: mongoose.Types.ObjectId(sucursalDestino),
+                sucursal: sucursalDestinoDoc._id,
                 usuario: req.usuario._id,
                 nombreUsuario: req.usuario.nombre,
-                motivo: `Transferencia desde ${producto.sucursal}`,
+                motivo: `Transferencia desde ${producto.sucursal.nombre}`,
                 observaciones,
                 costoUnitario: producto.precioCompra
             }], { session });
@@ -411,12 +449,25 @@ const registrarTransferencia = async (req, res) => {
 
         await session.commitTransaction();
 
+        // Formatear respuesta
+        const productoOrigenRespuesta = producto.toObject();
+        productoOrigenRespuesta.sucursal = producto.sucursal ? {
+            id: producto.sucursal._id,
+            nombre: producto.sucursal.nombre
+        } : null;
+
+        const productoDestinoRespuesta = productoDestino.toObject();
+        productoDestinoRespuesta.sucursal = {
+            id: sucursalDestinoDoc._id,
+            nombre: sucursalDestinoDoc.nombre
+        };
+
         res.status(201).json({
             success: true,
             mensaje: 'Transferencia registrada exitosamente',
             data: {
-                productoOrigen: producto,
-                productoDestino: productoDestino
+                productoOrigen: productoOrigenRespuesta,
+                productoDestino: productoDestinoRespuesta
             }
         });
 
@@ -456,7 +507,9 @@ const registrarMerma = async (req, res) => {
             });
         }
 
-        const producto = await Producto.findById(productoId).session(session);
+        const producto = await Producto.findById(productoId)
+            .populate('sucursal')
+            .session(session);
 
         if (!producto) {
             await session.abortTransaction();
@@ -486,7 +539,7 @@ const registrarMerma = async (req, res) => {
             cantidad: parseInt(cantidad),
             stockAnterior,
             stockNuevo: producto.stockActual,
-            sucursal: producto.sucursal,
+            sucursal: producto.sucursal._id,
             usuario: req.usuario._id,
             nombreUsuario: req.usuario.nombre,
             motivo,
@@ -496,11 +549,17 @@ const registrarMerma = async (req, res) => {
 
         await session.commitTransaction();
 
+        const productoRespuesta = producto.toObject();
+        productoRespuesta.sucursal = producto.sucursal ? {
+            id: producto.sucursal._id,
+            nombre: producto.sucursal.nombre
+        } : null;
+
         res.status(201).json({
             success: true,
             mensaje: 'Merma registrada exitosamente',
             data: {
-                producto: producto,
+                producto: productoRespuesta,
                 movimiento: movimiento[0]
             }
         });
@@ -555,15 +614,35 @@ const obtenerMovimientos = async (req, res) => {
         const movimientos = await MovimientoInventario.find(filtros)
             .populate('producto')
             .populate('usuario', 'nombre email')
+            .populate('sucursal')
+            .populate('sucursalDestino')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip(skip);
+
+        // Formatear respuesta con sucursales
+        const movimientosFormateados = movimientos.map(m => {
+            const mov = m.toObject();
+            if (mov.sucursal) {
+                mov.sucursal = {
+                    id: mov.sucursal._id,
+                    nombre: mov.sucursal.nombre
+                };
+            }
+            if (mov.sucursalDestino) {
+                mov.sucursalDestino = {
+                    id: mov.sucursalDestino._id,
+                    nombre: mov.sucursalDestino.nombre
+                };
+            }
+            return mov;
+        });
 
         const total = await MovimientoInventario.countDocuments(filtros);
 
         res.json({
             success: true,
-            data: movimientos,
+            data: movimientosFormateados,
             paginacion: {
                 total,
                 pagina: parseInt(page),
@@ -593,13 +672,33 @@ const obtenerMovimientosProducto = async (req, res) => {
             producto: req.params.productoId
         })
             .populate('usuario', 'nombre')
+            .populate('sucursal')
+            .populate('sucursalDestino')
             .sort({ createdAt: -1 })
             .limit(parseInt(limit));
 
+        // Formatear respuesta con sucursales
+        const movimientosFormateados = movimientos.map(m => {
+            const mov = m.toObject();
+            if (mov.sucursal) {
+                mov.sucursal = {
+                    id: mov.sucursal._id,
+                    nombre: mov.sucursal.nombre
+                };
+            }
+            if (mov.sucursalDestino) {
+                mov.sucursalDestino = {
+                    id: mov.sucursalDestino._id,
+                    nombre: mov.sucursalDestino.nombre
+                };
+            }
+            return mov;
+        });
+
         res.json({
             success: true,
-            total: movimientos.length,
-            data: movimientos
+            total: movimientosFormateados.length,
+            data: movimientosFormateados
         });
 
     } catch (error) {
@@ -625,8 +724,18 @@ const obtenerValoracionInventario = async (req, res) => {
         const valoracion = await Producto.aggregate([
             { $match: filtros },
             {
+                $lookup: {
+                    from: 'sucursales',
+                    localField: 'sucursal',
+                    foreignField: '_id',
+                    as: 'sucursalInfo'
+                }
+            },
+            { $unwind: '$sucursalInfo' },
+            {
                 $group: {
                     _id: '$sucursal',
+                    nombreSucursal: { $first: '$sucursalInfo.nombre' },
                     totalProductos: { $sum: 1 },
                     totalUnidades: { $sum: '$stockActual' },
                     valorCosto: {
@@ -637,11 +746,23 @@ const obtenerValoracionInventario = async (req, res) => {
                     }
                 }
             },
-            { $sort: { _id: 1 } }
+            { $sort: { nombreSucursal: 1 } }
         ]);
 
+        // Formatear con estructura sucursal {id, nombre}
+        const valoracionFormateada = valoracion.map(v => ({
+            sucursal: {
+                id: v._id,
+                nombre: v.nombreSucursal
+            },
+            totalProductos: v.totalProductos,
+            totalUnidades: v.totalUnidades,
+            valorCosto: v.valorCosto,
+            valorVenta: v.valorVenta
+        }));
+
         // Calcular totales generales
-        const totales = valoracion.reduce((acc, item) => ({
+        const totales = valoracionFormateada.reduce((acc, item) => ({
             totalProductos: acc.totalProductos + item.totalProductos,
             totalUnidades: acc.totalUnidades + item.totalUnidades,
             valorCosto: acc.valorCosto + item.valorCosto,
@@ -660,7 +781,7 @@ const obtenerValoracionInventario = async (req, res) => {
                 utilidadPotencial,
                 margenPotencial: parseFloat(margenPotencial)
             },
-            porSucursal: valoracion
+            porSucursal: valoracionFormateada
         });
 
     } catch (error) {
